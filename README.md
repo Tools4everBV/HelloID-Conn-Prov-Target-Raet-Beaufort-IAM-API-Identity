@@ -5,7 +5,7 @@ This connector is able to write back the identity of a provisioned user (to anot
 Please make your provisioned system dependant on this IAM-API Users Target Connector and make sure that the values needed to be written back are stored on the account data (e.g UserPrincipalName).
 
 # Custom Connector Configuration
-Please add the Custom Connector Configuration to this Target System.
+Please add the following JSON Custom Connector Configuration to this Target System.
 
 [
   {
