@@ -1,18 +1,13 @@
-$dryRun = $false
-
-$config = ConvertFrom-Json $configuration
-
-$clientId = $config.connection.clientId
-$clientSecret = $config.connection.clientSecret
-$tenantId = $config.connection.tenantId
-
 #Initialize default properties
-$p = $person | ConvertFrom-Json;
-$m = $manager | ConvertFrom-Json;
-$aRef = $accountReference | ConvertFrom-Json;
-$mRef = $managerAccountReference | ConvertFrom-Json;
+$p = $person | ConvertFrom-Json
+$config = $configuration | ConvertFrom-Json
+#$mRef = $managerAccountReference | ConvertFrom-Json;
 $success = $False;
 $auditLogs = New-Object Collections.Generic.List[PSCustomObject];
+
+$clientId = $config.clientid
+$clientSecret = $config.clientsecret
+$TenantId = $config.tenantid
 
 # Set TLS to accept TLS, TLS 1.1 and TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
@@ -67,16 +62,20 @@ function New-RaetSession {
             'X-Raet-Tenant-Id' = $TenantId;
            
         }     
-    }
-    catch {
-        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-            $errorMessage = "Something went wrong $($_.ScriptStackTrace). Error message: '$($_.Exception.Message)'"
-        } elseif (![string]::IsNullOrEmpty($_.ErrorDetails.Message)) {
-            $errorMessage = "Something went wrong $($_.ScriptStackTrace). Error message: '$($_.ErrorDetails.Message)'" 
+    } catch {
+        if ($_.ErrorDetails) {
+            Write-Error $_.ErrorDetails
+        } elseif ($_.Exception.Response) {
+            $result = $_.Exception.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($result)
+            $responseReader = $reader.ReadToEnd()
+            $errorExceptionStreamResponse = $responseReader | ConvertFrom-Json
+            $reader.Dispose()
+            Write-Error $errorExceptionStreamResponse.error.message
         } else {
-            $errorMessage = "Something went wrong $($_.ScriptStackTrace). Error message: '$($_)'" 
-        }  
-        throw $errorMessage
+            Write-Error "Something went wrong while connecting to the RAET API";
+        }
+        throw  "Something went wrong while connecting to the RAET API";
     } 
 }
 
@@ -86,12 +85,11 @@ function Confirm-AccessTokenIsValid {
             return $true
         }        
     }
-    return $false    
+    return $false        
 }
 
-try{
+try {
     $aRef = $account.Identity;
-
     If (($null -ne $account.identity) -AND ($account.identity -ne $account.Currentidentity)) {
         $accessTokenValid = Confirm-AccessTokenIsValid
         if ($accessTokenValid -ne $true) {
@@ -101,10 +99,10 @@ try{
         $getUrl = "https://api.raet.com/iam/v1.0/users(employeeId=$($account.externalID))"       
         $getResult = Invoke-WebRequest -Uri $getUrl -Method GET -Headers $Script:AuthenticationHeaders -ContentType "application/json"
 
-        $raetCurrentIdentity = ($getResult.content | ConvertFrom-Json).identityId            
-        
+        $raetCurrentIdentity = ($getResult.content | ConvertFrom-Json).identityId
+
         if (($null -ne $raetCurrentIdentity) -AND ($account.identity -ne $raetCurrentIdentity)) {
-    
+        
             $userIdentity = [PSCustomObject]@{
                 id = $account.identity
             }
@@ -115,50 +113,39 @@ try{
             if (-Not($dryRun -eq $True)) {            
                 $null = Invoke-WebRequest -Uri $PatchUrl -Method PATCH -Headers $Script:AuthenticationHeaders -ContentType "application/json" -Body $identityBody
             }
-
             $auditLogs.Add([PSCustomObject]@{
-                Action = "CreateAccount"
-                Message = "Updated RAET user identity $($aRef)"
-                IsError = $false;
-            });
+                    Message = "Updated RAET user identity $($aRef)"
+                    IsError = $false;
+                });
     
             $success = $true;
+        } else {
+            $auditLogs.Add([PSCustomObject]@{   
+                    Message = "Skipped update of RAET user identity $($aRef); ID empty or equal in RAET"
+                    IsError = $false;
+                });
         }
-        else {
-            $auditLogs.Add([PSCustomObject]@{
-                Action = "CreateAccount"
-                Message = "Skipped update of RAET user identity $($aRef); ID empty or equal in RAET"
+    } else {
+        $auditLogs.Add([PSCustomObject]@{
+                Message = "Skipped update of RAET user identity $($aRef); ID empty or equal in HelloID"
                 IsError = $false;
             });
-    
-            $success = $true;     
-        }
-    }else{
-        $auditLogs.Add([PSCustomObject]@{
-            Action = "CreateAccount"
-            Message = "Skipped update of RAET user identity $($aRef); ID empty or equal in HelloID"
-            IsError = $false;
-        });
-    
         $success = $true; 
-    } 
-}catch{
+    }
+} catch {
     $auditLogs.Add([PSCustomObject]@{
-        Action = "CreateAccount"
-        Message = "Error updating RAET user identity $($aRef): $($_)"
-        IsError = $True
-    });
-    Write-Error $_;    
+            Message = "Error updating RAET user identity $($aRef): $($_)"
+            IsError = $True
+        });
+    Write-Error $_;  
 }
 
-
-# Send results
-$result = [PSCustomObject]@{
-	Success= $success;
-	AccountReference= $account.externalID;
-	AuditLogs = $auditLogs;
-    Account = $account;
-    #PreviousAccount = $previousAccount;    
+#build up result
+$result = [PSCustomObject]@{ 
+    Success          = $success;
+    AccountReference = $account.externalID;
+    AuditLogs        = $auditLogs
+    Account          = $account;
 
     # Optionally return data for use in other systems
     ExportData       = [PSCustomObject]@{
@@ -167,4 +154,5 @@ $result = [PSCustomObject]@{
         externalId  = $account.externalId;
     };
 };
-Write-Output $result | ConvertTo-Json -Depth 10;
+#send result back
+Write-Output $result | ConvertTo-Json -Depth 10
