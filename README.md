@@ -50,3 +50,6 @@ Please add the following JSON Custom Connector Configuration to this Target Syst
 ### More information
 More information about the Users endpoint of the Raet Users Endpoint can be found on:
 https://community.raet.com/developers-community/w/iam-api/2695/iam-endpoints-users
+
+# HelloID Docs
+The official HelloID documentation can be found at: https://docs.helloid.com/
