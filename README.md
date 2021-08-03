@@ -1,4 +1,8 @@
-# **Work-In-Progress - Untested**
+# **Work-In-Progress - Initial version**
+
+### Requirements
+- By default, the User endpoints aren't "enabled". This has to be requested at Raet.
+- ClientID, ClientSecret and tenantID to authenticate with RAET IAM-API Webservice
 
 ### HelloID-Conn-Prov-Target-Raet-Users
 This connector is able to write back the identity of a provisioned user (to another target like Azure AD or MS AD) to the user of Raet Beaufort. This field can be used in Beaufort for, by example, Single Sign-On purposes. Please keep in mind that for now, only the AccountCreate or AccountUpdate is triggering the possible change of the identity. (Disable, Delete and Enable are not neccesarry)
