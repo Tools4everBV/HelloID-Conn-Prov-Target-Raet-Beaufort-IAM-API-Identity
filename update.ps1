@@ -1,4 +1,3 @@
-
 #Initialize default properties
 $p = $person | ConvertFrom-Json
 $aref = $accountReference | ConvertFrom-Json
@@ -18,8 +17,7 @@ $TenantId = $config.tenantid
 $account = [PSCustomObject]@{
     displayName     = $p.DisplayName;
     externalId      = $p.externalID;    
-    currentIdentity = $aref
-    identity        = $p.Accounts.ActiveDirectory.userPrincipalName;    
+    identity        = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName;    
 }
 
 function New-RaetSession { 
@@ -91,18 +89,19 @@ function Confirm-AccessTokenIsValid {
 }
 
 try {
-    If (($null -ne $account.identity) -AND ($account.identity -ne $account.Currentidentity)) {
+    If (($null -ne $account.identity)) {
         $accessTokenValid = Confirm-AccessTokenIsValid
         if ($accessTokenValid -ne $true) {
             New-RaetSession -ClientId $clientId -ClientSecret $clientSecret -TenantId $TenantId
         }
 
         $getUrl = "https://api.raet.com/iam/v1.0/users(employeeId=$($account.externalID))"       
+
         $getResult = Invoke-WebRequest -Uri $getUrl -Method GET -Headers $Script:AuthenticationHeaders -ContentType "application/json"
 
         $raetCurrentIdentity = ($getResult.content | ConvertFrom-Json).identityId
 
-        if (($null -ne $raetCurrentIdentity) -AND ($account.identity -ne $raetCurrentIdentity)) {
+        if ($account.identity -ne $raetCurrentIdentity) {
         
             $userIdentity = [PSCustomObject]@{
                 id = $account.identity
@@ -114,39 +113,37 @@ try {
             if (-Not($dryRun -eq $True)) {            
                 $null = Invoke-WebRequest -Uri $PatchUrl -Method PATCH -Headers $Script:AuthenticationHeaders -ContentType "application/json" -Body $identityBody
             }
-            
             $auditLogs.Add([PSCustomObject]@{
-                    Message = "Updated RAET user identity $($aRef)"
+                    Message = "Updated RAET user identity $($aRef): New identity: $($account.identity)"
                     IsError = $false;
                 });
     
             $success = $true;
         } else {
-            $auditLogs.Add([PSCustomObject]@{                 
-                    Message = "Skipped update of RAET user identity $($aRef); ID empty or equal in RAET"
+            $auditLogs.Add([PSCustomObject]@{
+                    Message = "Skipped update of RAET user identity $($aRef): Identity equal in Raet: $($account.identity)"
                     IsError = $false;
                 });
             $success = $true; 
         }
     } else {
-        $auditLogs.Add([PSCustomObject]@{             
-                Message = "Skipped update of RAET user identity $($aRef); ID empty or equal in HelloID"
-                IsError = $false;
+        $auditLogs.Add([PSCustomObject]@{
+                Message = "Error updating RAET user identity $($aRef): No new identity provided"
+                IsError = $True
             });
-        $success = $true; 
+        Write-Error "Error updating RAET user identity $($aRef): No new identity provided";  
     }
 } catch {
     $auditLogs.Add([PSCustomObject]@{
             Message = "Error updating RAET user identity $($aRef): $($_)"
             IsError = $True
         });
-    Write-Error $_;  
+    Write-Error "Error updating RAET user identity $($aRef): $($_)";  
 }
 
 #build up result
 $result = [PSCustomObject]@{ 
     Success          = $success;
-    AccountReference = $account.externalID;
     AuditLogs        = $auditLogs
     Account          = $account;
 
