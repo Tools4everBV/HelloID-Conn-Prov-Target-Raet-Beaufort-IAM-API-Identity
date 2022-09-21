@@ -65,16 +65,16 @@ function New-RaetSession {
         }     
     } catch {
         if ($_.ErrorDetails) {
-            Write-Error $_.ErrorDetails
+            Write-Verbose -Verbose $_.ErrorDetails
         } elseif ($_.Exception.Response) {
             $result = $_.Exception.Response.GetResponseStream()
             $reader = New-Object System.IO.StreamReader($result)
             $responseReader = $reader.ReadToEnd()
             $errorExceptionStreamResponse = $responseReader | ConvertFrom-Json
             $reader.Dispose()
-            Write-Error $errorExceptionStreamResponse.error.message
+            Write-Verbose -Verbose $errorExceptionStreamResponse.error.message
         } else {
-            Write-Error "Something went wrong while connecting to the RAET API";
+            Write-Verbose -Verbose "Something went wrong while connecting to the RAET API";
         }
         throw  "Something went wrong while connecting to the RAET API";
     } 
