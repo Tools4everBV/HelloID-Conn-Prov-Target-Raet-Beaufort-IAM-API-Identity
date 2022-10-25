@@ -1,27 +1,76 @@
-#Initialize default properties
+#####################################################
+# HelloID-Conn-Prov-Source-RAET-IAM-API-User-Create
+#
+# Version: 1.1.2
+#####################################################
+# Initialize default values
+$c = $configuration | ConvertFrom-Json
 $p = $person | ConvertFrom-Json
-$config = $configuration | ConvertFrom-Json
-$mRef = $managerAccountReference | ConvertFrom-Json;
-$success = $False;
-$auditLogs = New-Object Collections.Generic.List[PSCustomObject];
-
-$clientId = $config.clientid
-$clientSecret = $config.clientsecret
-$TenantId = $config.tenantid
+$success = $false
+$auditLogs = [System.Collections.Generic.List[PSCustomObject]]::new()
 
 # Set TLS to accept TLS, TLS 1.1 and TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
 
+# Set debug logging
+switch ($($c.isDebug)) {
+    $true { $VerbosePreference = 'Continue' }
+    $false { $VerbosePreference = 'SilentlyContinue' }
+}
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# Used to connect to RAET IAM API endpoints
+$clientId = $c.clientid
+$clientSecret = $c.clientsecret
+$TenantId = $c.tenantid
+$updateOnCorrelate = $c.updateOnCorrelate
+
+$Script:BaseUrl = "https://api.raet.com"
+
 #Change mapping here
 $account = [PSCustomObject]@{
-    displayName     = $p.DisplayName;
-    externalId      = $p.externalID;    
-    identity        = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName;    
+    displayName = $p.DisplayName
+    externalId  = $p.externalID
+    identity    = $p.Accounts.MicrosoftActiveDirectory.userPrincipalName
 }
 
-$aRef = $account.externalID
+# # Troubleshooting
+# $account = [PSCustomObject]@{
+#     displayName = 'John Doe - Test (918030)'
+#     externalId  = '999999'
+#     identity    = 'j.doe@enyoi.org'
+# }
+# $dryRun = $false
 
-function New-RaetSession { 
+#region functions
+function Resolve-HTTPError {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory,
+            ValueFromPipeline
+        )]
+        [object]$ErrorObject
+    )
+    process {
+        $httpErrorObj = [PSCustomObject]@{
+            FullyQualifiedErrorId = $ErrorObject.FullyQualifiedErrorId
+            MyCommand             = $ErrorObject.InvocationInfo.MyCommand
+            RequestUri            = $ErrorObject.TargetObject.RequestUri
+            ScriptStackTrace      = $ErrorObject.ScriptStackTrace
+            ErrorMessage          = ''
+        }
+        if ($ErrorObject.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') {
+            $httpErrorObj.ErrorMessage = $ErrorObject.ErrorDetails.Message
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+            $httpErrorObj.ErrorMessage = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
+        }
+        Write-Output $httpErrorObj
+    }
+}
+
+function New-RaetSession {
     [CmdletBinding()]
     param (
         [Alias("Param1")] 
@@ -39,122 +88,295 @@ function New-RaetSession {
         [string]
         $TenantId
     )
-   
+
     #Check if the current token is still valid
-    if (Confirm-AccessTokenIsValid -eq $true) {       
+    $accessTokenValid = Confirm-AccessTokenIsValid
+    if ($true -eq $accessTokenValid) {
         return
     }
 
-    $url = "https://api.raet.com/authentication/token"
-    $authorisationBody = @{
-        'grant_type'    = "client_credentials"
-        'client_id'     = $ClientId
-        'client_secret' = $ClientSecret
-    } 
     try {
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12;
-        $result = Invoke-WebRequest -Uri $url -Method Post -Body $authorisationBody -ContentType 'application/x-www-form-urlencoded' -Headers @{'Cache-Control' = "no-cache" } -Proxy:$Proxy -UseBasicParsing
-        $accessToken = $result.Content | ConvertFrom-Json
-        $Script:expirationTimeAccessToken = (Get-Date).AddSeconds($accessToken.expires_in)
+        # Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+        $authorisationBody = @{
+            'grant_type'    = "client_credentials"
+            'client_id'     = $ClientId
+            'client_secret' = $ClientSecret
+        }        
+        $splatAccessTokenParams = @{
+            Uri             = "$($BaseUrl)/authentication/token"
+            Headers         = @{'Cache-Control' = "no-cache" }
+            Method          = 'POST'
+            ContentType     = "application/x-www-form-urlencoded"
+            Body            = $authorisationBody
+            UseBasicParsing = $true
+        }
+
+        Write-Verbose "Creating Access Token at uri '$($splatAccessTokenParams.Uri)'"
+
+        $result = Invoke-RestMethod @splatAccessTokenParams
+        if ($null -eq $result.access_token) {
+            throw $result
+        }
+
+        $Script:expirationTimeAccessToken = (Get-Date).AddSeconds($result.expires_in)
 
         $Script:AuthenticationHeaders = @{
-            'X-Client-Id'      = $ClientId;
-            'Authorization'    = "Bearer $($accessToken.access_token)";
-            'X-Raet-Tenant-Id' = $TenantId;
-           
-        }     
-    } catch {
-        if ($_.ErrorDetails) {
-            Write-Verbose -Verbose $_.ErrorDetails
-        } elseif ($_.Exception.Response) {
-            $result = $_.Exception.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($result)
-            $responseReader = $reader.ReadToEnd()
-            $errorExceptionStreamResponse = $responseReader | ConvertFrom-Json
-            $reader.Dispose()
-            Write-Verbose -Verbose $errorExceptionStreamResponse.error.message
-        } else {
-            Write-Verbose -Verbose "Something went wrong while connecting to the RAET API";
+            'X-Client-Id'      = $ClientId
+            'Authorization'    = "Bearer $($result.access_token)"
+            'X-Raet-Tenant-Id' = $TenantId
         }
-        throw  "Something went wrong while connecting to the RAET API";
-    } 
+
+        Write-Verbose "Successfully created Access Token at uri '$($splatAccessTokenParams.Uri)'"
+    }
+    catch {
+        $ex = $PSItem
+        if ( $($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+            $errorObject = Resolve-HTTPError -Error $ex
+    
+            $verboseErrorMessage = $errorObject.ErrorMessage
+    
+            $auditErrorMessage = $errorObject.ErrorMessage
+        }
+    
+        # If error message empty, fall back on $ex.Exception.Message
+        if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
+            $verboseErrorMessage = $ex.Exception.Message
+        }
+        if ([String]::IsNullOrEmpty($auditErrorMessage)) {
+            $auditErrorMessage = $ex.Exception.Message
+        }
+
+        Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"        
+
+        throw "Error creating Access Token at uri ''$($splatAccessTokenParams.Uri)'. Please check credentials. Error Message: $auditErrorMessage"
+    }
 }
 
 function Confirm-AccessTokenIsValid {
     if ($null -ne $Script:expirationTimeAccessToken) {
         if ((Get-Date) -le $Script:expirationTimeAccessToken) {
             return $true
-        }        
+        }
     }
-    return $false        
+    return $false
+}
+#endregion functions
+
+# Get current RAET user and verify if a user must be either [updated and correlated] or just [correlated]
+try {
+    Write-Verbose "Querying RAET user with employeeId '$($account.externalID)'"
+
+    $accessTokenValid = Confirm-AccessTokenIsValid
+    if ($true -ne $accessTokenValid) {
+        New-RaetSession -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenantId
+    }
+
+    $splatGetDataParams = @{
+        Uri             = "$baseUrl/iam/v1.0/users(employeeId=$($account.externalID))"
+        Headers         = $Script:AuthenticationHeaders
+        Method          = 'GET'
+        ContentType     = "application/json"
+        UseBasicParsing = $true
+    }
+
+    Write-Verbose "Querying data from '$($splatGetDataParams.Uri)'"
+
+    $currentAccount = Invoke-RestMethod @splatGetDataParams -Verbose:$false
+
+    if ($null -eq $currentAccount.id) {
+        throw "No RAET user found with employeeId '$($account.externalID)'"
+    }
+
+    if ($updateOnCorrelate -eq $true) {
+        $action = 'Update-Correlate'
+
+        $propertiesChanged = $null
+        # Check if current Identity has a different value from mapped value. RAET IAM API will throw an error when trying to update this with the same value
+        if ([string]$currentAccount.identityId -ne $account.identity -and $null -ne $account.identity) {
+            $propertiesChanged += @('Identity')
+        }
+        if ($propertiesChanged) {
+            Write-Verbose "Account property(s) required to update: [$($propertiesChanged -join ",")]"
+            $updateAction = 'Update'
+        }
+        else {
+            $updateAction = 'NoChanges'
+        }
+    }
+    else {
+        $action = 'Correlate'
+    }
+}
+catch {
+    $ex = $PSItem
+    if ( $($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+        $errorObject = Resolve-HTTPError -Error $ex
+
+        $verboseErrorMessage = $errorObject.ErrorMessage
+
+        $auditErrorMessage = $errorObject.ErrorMessage
+    }
+
+    # If error message empty, fall back on $ex.Exception.Message
+    if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
+        $verboseErrorMessage = $ex.Exception.Message
+    }
+    if ([String]::IsNullOrEmpty($auditErrorMessage)) {
+        $auditErrorMessage = $ex.Exception.Message
+    }
+
+    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+
+    if ($auditErrorMessage -Like "No RAET user found with employeeId '$($account.externalID)'") {
+        $success = $false
+        $auditLogs.Add([PSCustomObject]@{
+                Action  = "CreateAccount"
+                Message = "No RAET user found with employeeId '$($account.externalID)'. Possibly deleted."
+                IsError = $true
+            })
+        Write-Warning "DryRun: No RAET user found with employeeId '$($account.externalID)'. Possibly deleted."
+    }
+    else {
+        $success = $false  
+        $auditLogs.Add([PSCustomObject]@{
+                Action  = "CreateAccount"
+                Message = "Error querying RAET user with employeeId '$($account.externalID)'. Error Message: $auditErrorMessage"
+                IsError = $True
+            })
+    }
 }
 
-try {
-    If (($null -ne $account.identity)) {
-        $accessTokenValid = Confirm-AccessTokenIsValid
-        if ($accessTokenValid -ne $true) {
-            New-RaetSession -ClientId $clientId -ClientSecret $clientSecret -TenantId $TenantId
-        }
+if ($null -ne $currentAccount.id) {
+    switch ($action) {
+        'Update-Correlate' {
+            Write-Verbose "Updating and correlating RAET user with employeeId '$($account.externalID)'"
 
-        $getUrl = "https://api.raet.com/iam/v1.0/users(employeeId=$($account.externalID))"       
+            switch ($updateAction) {
+                'Update' {
+                    try {
+                        $updateAccount = [PSCustomObject]@{
+                            id = $account.identity
+                        }
+                        $body = ($updateAccount | ConvertTo-Json -Depth 10)    
 
-        $getResult = Invoke-WebRequest -Uri $getUrl -Method GET -Headers $Script:AuthenticationHeaders -ContentType "application/json"
+                        $splatWebRequest = @{
+                            Uri             = "$baseUrl/iam/v1.0/users(employeeId=$($account.externalID))/identity"
+                            Headers         = $Script:AuthenticationHeaders
+                            Method          = 'PATCH'
+                            Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))
+                            ContentType     = "application/json;charset=utf-8"
+                            UseBasicParsing = $true
+                        }
+            
+                        if (-not($dryRun -eq $true)) {
+                            Write-Verbose "Updating RAET user with employeeId '$($account.externalID)'. Current identity: $($currentAccount.identityId). New identity: $($account.identity)"
 
-        $raetCurrentIdentity = ($getResult.content | ConvertFrom-Json).identityId
+                            $updatedAccount = Invoke-RestMethod @splatWebRequest -Verbose:$false
+                            # Set aRef object for use in futher actions
+                            $aRef = $account.externalID
 
-        if ($account.identity -ne $raetCurrentIdentity) {
-        
-            $userIdentity = [PSCustomObject]@{
-                id = $account.identity
+                            $success = $true
+                            $auditLogs.Add([PSCustomObject]@{
+                                    Action  = "CreateAccount"
+                                    Message = "Successfully updated RAET user with employeeId '$($account.externalID)'"
+                                    IsError = $false
+                                })
+                        }
+                        else {
+                            Write-Warning "DryRun: Would update RAET user with employeeId '$($account.externalID)'. Current identity: $($currentAccount.identityId). New identity: $($account.identity)"
+                        }
+                        break
+                    }
+                    catch {
+                        $ex = $PSItem
+                        if ( $($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+                            $errorObject = Resolve-HTTPError -Error $ex
+                    
+                            $verboseErrorMessage = $errorObject.ErrorMessage
+                    
+                            $auditErrorMessage = $errorObject.ErrorMessage
+                        }
+                    
+                        # If error message empty, fall back on $ex.Exception.Message
+                        if ([String]::IsNullOrEmpty($verboseErrorMessage)) {
+                            $verboseErrorMessage = $ex.Exception.Message
+                        }
+                        if ([String]::IsNullOrEmpty($auditErrorMessage)) {
+                            $auditErrorMessage = $ex.Exception.Message
+                        }
+                    
+                        $ex = $PSItem
+                        $verboseErrorMessage = $ex
+                        
+                        Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+                        
+                        $success = $false  
+                        $auditLogs.Add([PSCustomObject]@{
+                                Action  = "CreateAccount"
+                                Message = "Error updating RAET user with employeeId '$($account.externalID)'. Current identity: $($currentAccount.identityId). New identity: $($account.identity). Error Message: $auditErrorMessage"
+                                IsError = $True
+                            })
+                    }
+                }
+                'NoChanges' {
+                    Write-Verbose "No changes to RAET user with employeeId '$($account.externalID)'"
+
+                    if (-not($dryRun -eq $true)) {
+                        # Set aRef object for use in futher actions
+                        $aRef = $account.externalID
+
+                        $success = $true
+                        $auditLogs.Add([PSCustomObject]@{
+                                Action  = "CreateAccount"
+                                Message = "Successfully updated RAET user with employeeId '$($account.externalID)'. (No Changes needed)"
+                                IsError = $false
+                            })
+                    }
+                    else {
+                        Write-Warning "DryRun: No changes to RAET user with employeeId '$($account.externalID)'"
+                    }
+                    break
+                }
             }
-            $identityBody = $userIdentity | ConvertTo-Json        
-
-            $PatchUrl = "https://api.raet.com/iam/v1.0/users(employeeId=$($account.externalID))/identity"
-
-            if (-Not($dryRun -eq $True)) {            
-                $null = Invoke-WebRequest -Uri $PatchUrl -Method PATCH -Headers $Script:AuthenticationHeaders -ContentType "application/json" -Body $identityBody
-            }
-            $auditLogs.Add([PSCustomObject]@{
-                    Message = "Updated RAET user identity $($aRef): New identity: $($account.identity)"
-                    IsError = $false;
-                });
-    
-            $success = $true;
-        } else {
-            $auditLogs.Add([PSCustomObject]@{
-                    Message = "Skipped update of RAET user identity $($aRef): Identity equal in Raet: $($account.identity)"
-                    IsError = $false;
-                });
-            $success = $true; 
+            break
         }
-    } else {
-        $auditLogs.Add([PSCustomObject]@{
-                Message = "Error updating RAET user identity $($aRef): No new identity provided"
-                IsError = $True
-            });
-        Write-Error "Error updating RAET user identity $($aRef): No new identity provided";  
+        'Correlate' {
+            Write-Verbose "Correlating RAET user with employeeId '$($account.externalID)'"
+
+            if (-not($dryRun -eq $true)) {
+                # Set aRef object for use in futher actions
+                $aRef = $account.externalID
+
+                $success = $true
+                $auditLogs.Add([PSCustomObject]@{
+                        Action  = "CreateAccount"
+                        Message = "Successfully correlated RAET user with employeeId '$($account.externalID)'"
+                        IsError = $false
+                    })
+            }
+            else {
+                Write-Warning "DryRun: Would correlate RAET user with employeeId '$($account.externalID)'"
+            }
+            break
+        }
     }
-} catch {
-    $auditLogs.Add([PSCustomObject]@{
-            Message = "Error updating RAET user identity $($aRef): $($_)"
-            IsError = $True
-        });
-    Write-Error "Error updating RAET user identity $($aRef): $($_)";  
 }
 
 #build up result
 $result = [PSCustomObject]@{ 
-    Success          = $success;
-    AccountReference = $aRef;
+    Success          = $success
+    AccountReference = $aRef
     AuditLogs        = $auditLogs
-    Account          = $account;
+    Account          = $account
 
     # Optionally return data for use in other systems
     ExportData       = [PSCustomObject]@{
-        displayName = $account.DisplayName;
-        identity    = $account.identity;
-        externalId  = $account.externalId;
-    };
-};
+        displayName = $account.displayName
+        identity    = $account.identity
+        externalId  = $account.externalId
+    }
+}
 #send result back
 Write-Output $result | ConvertTo-Json -Depth 10

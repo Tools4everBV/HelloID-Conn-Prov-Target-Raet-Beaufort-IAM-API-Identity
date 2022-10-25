@@ -31,5 +31,25 @@
       "description": "Optional. Not required in most implementations.",
       "required": false
     }
+  },
+  {
+    "key": "updateOnCorrelate",
+    "type": "checkbox",
+    "defaultValue": false,
+    "templateOptions": {
+      "label": "Update user when correlating and mapped data differs from data in RAET IAM API",
+      "required": false,
+      "description": "This will update RAET IAM API users in the create action (not just correlate)."
+    }
+  },
+  {
+    "key": "isDebug",
+    "type": "checkbox",
+    "defaultValue": false,
+    "templateOptions": {
+      "label": "Toggle debug logging",
+      "description": "When toggled, debug logging will be displayed",
+      "required": false
+    }
   }
 ]
