@@ -82,6 +82,7 @@ The following settings are required to connect to the API.
 #### Remarks
 - Only the 'identity' field can be updated, no other fields are (currently) supported.
   > When the value in Raet equals the value in HelloID, the action will be skipped (no update will take place).
+- Currently (08-12-2022) Changes you make with this connector through the API are not visible within the Youforce portal. If you want to check if the update is succesfull please retreive the edited user or try the SSO connection.
 
 ## Getting help
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/hc/en-us/articles/360012558020-Configure-a-custom-PowerShell-target-system) pages_
