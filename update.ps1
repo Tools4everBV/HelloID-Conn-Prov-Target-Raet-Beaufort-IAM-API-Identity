@@ -26,7 +26,8 @@ $clientId = $c.clientid
 $clientSecret = $c.clientsecret
 $TenantId = $c.tenantid
 
-$Script:BaseUrl = "https://api.raet.com"
+$Script:AuthenticationUrl = "https://connect.visma.com/connect/token"
+$Script:BaseUrl = "https://api.youforce.com"
 
 #Change mapping here
 $account = [PSCustomObject]@{
@@ -103,9 +104,10 @@ function New-RaetSession {
             'grant_type'    = "client_credentials"
             'client_id'     = $ClientId
             'client_secret' = $ClientSecret
+            'tenant_id'     = $TenantId
         }        
         $splatAccessTokenParams = @{
-            Uri             = "$($BaseUrl)/authentication/token"
+            Uri             = $AuthenticationUrl
             Headers         = @{'Cache-Control' = "no-cache" }
             Method          = 'POST'
             ContentType     = "application/x-www-form-urlencoded"
@@ -123,14 +125,17 @@ function New-RaetSession {
         $Script:expirationTimeAccessToken = (Get-Date).AddSeconds($result.expires_in)
 
         $Script:AuthenticationHeaders = @{
-            'X-Client-Id'      = $ClientId
-            'Authorization'    = "Bearer $($result.access_token)"
-            'X-Raet-Tenant-Id' = $TenantId
+            'Authorization' = "Bearer $($result.access_token)"
+            'Accept'        = "application/json"
         }
 
         Write-Verbose "Successfully created Access Token at uri '$($splatAccessTokenParams.Uri)'"
     }
     catch {
+        # Clear verboseErrorMessage and auditErrorMessage to make sure it isn't filled with a previouw error message
+        $verboseErrorMessage = $null
+        $auditErrorMessage = $null
+
         $ex = $PSItem
         if ( $($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
             $errorObject = Resolve-HTTPError -Error $ex
