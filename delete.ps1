@@ -271,7 +271,7 @@ catch {
       
     Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
     
-    $auditLogs.Add([PSCustomObject]@{
+    $outputContext.AuditLogs.Add([PSCustomObject]@{
             Message = "Could not update Raet Beaufort user account. Error Message: $($auditErrorMessage)"
             IsError = $true
         })
