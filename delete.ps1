@@ -154,7 +154,7 @@ try {
     Write-Verbose "Verifying if a Raet Beaufort user account for [$($personContext.Person.DisplayName)] exists"
 
     $splatWebRequest = @{
-        Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($correlationValue))"
+        Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($actionContext.References.Account))"
         Headers         = $Script:AuthenticationHeaders
         Method          = 'GET'
         ContentType     = "application/json"
@@ -203,7 +203,7 @@ try {
                 $body = ($updateAccount | ConvertTo-Json -Depth 10)   
 
                 $splatWebRequest = @{
-                    Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($account.externalID))/identity"
+                    Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($actionContext.References.Account))/identity"
                     Headers         = $Script:AuthenticationHeaders
                     Method          = 'PATCH'
                     Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))
