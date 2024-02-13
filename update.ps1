@@ -143,6 +143,8 @@ try {
             throw 'The account reference could not be found'
         }
 
+        $account = $actionContext.Data
+
         $accessTokenValid = Confirm-AccessTokenIsValid
         if ($true -ne $accessTokenValid) {
             $splatRaetSession = @{
@@ -153,10 +155,11 @@ try {
             New-RaetSession @splatRaetSession
         }
 
+
         Write-Verbose "Verifying if a Raet Beaufort user account for [$($personContext.Person.DisplayName)] exists"
 
         $splatWebRequest = @{
-            Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($actionContext.References.Account))"
+            Uri             = "$($Script:BaseUrl)/iam/v1.0/users(employeeId=$($actionContext.References.Account))"
             Headers         = $Script:AuthenticationHeaders
             Method          = 'GET'
             ContentType     = "application/json"
@@ -167,14 +170,12 @@ try {
 
         # Always compare the account against the current account in target system
         if ($null -ne $correlatedAccount.id) {
-            $splatCompareProperties = @{
-                ReferenceObject  = $correlatedAccount.PSObject.Properties
-                DifferenceObject = $actionContext.Data.PSObject.Properties
-            }
-            $propertiesChanged = Compare-Object @splatCompareProperties -PassThru | Where-Object { $_.SideIndicator -eq '=>' }
+            if ([string]$correlatedAccount.identityId -ne $account.identity -and $null -ne $account.identity) {
+                $propertiesChanged += @('Identity')
+                }
             if ($propertiesChanged) {
                 $action = 'UpdateAccount'
-                $dryRunMessage = "Account property(s) required to update: $($propertiesChanged.Name -join ', ')"
+                $dryRunMessage = "Would update RAET user with employeeId '$($actionContext.References.Account)'. Current identity: $($correlatedAccount.identityId). New identity: $($account.identity)"
             }
             else {
                 $action = 'NoChanges'
@@ -195,16 +196,16 @@ try {
         if (-not($actionContext.DryRun -eq $true)) {
             switch ($action) {
                 'UpdateAccount' {
-                    Write-Verbose "Updating Raet Beaufort user account with accountReference: [$($actionContext.References.Account)]"
+                    Write-Verbose "Updating RAET user with employeeId '$($account.externalID)'. Current identity: $($correlatedAccount.identityId). New identity: $($account.identity)"
 
                     # Some what confusing that the GET gives back a 'id' (aRef) and you have to PATCH the UPN on 'id' a well. This needs to be hardcoded
                     $updateAccount = [PSCustomObject]@{
-                        id = $actionContext.Data.identity
+                        id = $account.identity
                     }
                     $body = ($updateAccount | ConvertTo-Json -Depth 10)   
 
                     $splatWebRequest = @{
-                        Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($actionContext.References.Account))/identity"
+                        Uri             = "$($Script:BaseUrl)/iam/v1.0/users(employeeId=$($actionContext.References.Account))/identity"
                         Headers         = $Script:AuthenticationHeaders
                         Method          = 'PATCH'
                         Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))
@@ -214,14 +215,10 @@ try {
 
                     $updatedAccount = Invoke-RestMethod @splatWebRequest -Verbose:$false
 
-                    # Not sure if $updatedAccount gives back the result you updated. Else return $actionContext.Data
-                    # $outputContext.Data = $actionContext.Data
-                    $outputContext.Data = $updatedAccount
-
                     $outputContext.Success = $true
                     $outputContext.AuditLogs.Add([PSCustomObject]@{
                             Action  = $action
-                            Message = "Delete account was successful, Account property(s) updated: [$($propertiesChanged.name -join ',')]"
+                            Message = "Update account was successful, current identity: [$($correlatedAccount.identityId)]. New identity: [$($account.identity)]"
                             IsError = $false
                         })
                     break
