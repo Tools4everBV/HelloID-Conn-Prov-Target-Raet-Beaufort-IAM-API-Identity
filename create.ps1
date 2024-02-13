@@ -73,7 +73,7 @@ function New-RaetSession {
             'tenant_id'     = $TenantId
         }        
         $splatAccessTokenParams = @{
-            Uri             = $AuthenticationUrl
+            Uri             = $Script:AuthenticationUri
             Headers         = @{'Cache-Control' = "no-cache" }
             Method          = 'POST'
             ContentType     = "application/x-www-form-urlencoded"

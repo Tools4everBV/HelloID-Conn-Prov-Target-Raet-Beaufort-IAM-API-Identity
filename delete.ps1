@@ -73,7 +73,7 @@ function New-RaetSession {
             'tenant_id'     = $TenantId
         }        
         $splatAccessTokenParams = @{
-            Uri             = $AuthenticationUrl
+            Uri             = $Script:AuthenticationUrl
             Headers         = @{'Cache-Control' = "no-cache" }
             Method          = 'POST'
             ContentType     = "application/x-www-form-urlencoded"
@@ -203,7 +203,7 @@ try {
                 $body = ($updateAccount | ConvertTo-Json -Depth 10)   
 
                 $splatWebRequest = @{
-                    Uri             = "$baseUrl/iam/v1.0/users(employeeId=$($account.externalID))/identity"
+                    Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($account.externalID))/identity"
                     Headers         = $Script:AuthenticationHeaders
                     Method          = 'PATCH'
                     Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))
