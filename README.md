@@ -76,7 +76,7 @@ To properly setup the correlation:
 
 #### Field mapping
 
-The field mapping can be imported by using the [_fieldMapping.json_](.\fieldMapping.json) file.
+The field mapping can be imported by using the [_fieldMapping.json_](./fieldMapping.json) file.
 
 ### Connection settings
 
