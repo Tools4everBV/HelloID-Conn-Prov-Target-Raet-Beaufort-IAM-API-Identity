@@ -1,13 +1,6 @@
 
 # HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Identity
 
-
-> [!WARNING]
-> This script is not tested. Only dryCoded! fieldMapping.json will be added after the release.
-
-> [!WARNING]
-> This script is for the new powershell connector. Make sure to use the mapping and correlation keys like mentionded in this readme. For more information, please read our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html).
-
 > [!IMPORTANT]
 > This repository contains the connector and configuration code only. The implementer is responsible to acquire the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements.
 
@@ -83,7 +76,7 @@ To properly setup the correlation:
 
 #### Field mapping
 
-The field mapping can be imported by using the _fieldMapping.json_ file.
+The field mapping can be imported by using the [_fieldMapping.json_](.\fieldMapping.json) file.
 
 ### Connection settings
 
@@ -115,6 +108,10 @@ The following settings are required to connect to the API.
 
 > [!NOTE]
 > Currently (08-12-2022) Changes you make with this connector through the API are not visible within the Youforce portal. If you want to check if the update is succesfull please retreive the edited user or try the SSO connection.
+
+
+> [!NOTE]
+> Currently (14-02-2024) it is not possible to empty the identity in Youforce. The endpoint will give a error. By default `ExternalID@Domain.com` will be filled.
 
 ## Getting help
 

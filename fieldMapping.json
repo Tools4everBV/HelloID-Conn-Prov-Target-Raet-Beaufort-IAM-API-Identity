@@ -1,0 +1,48 @@
+{
+  "Version": "v1",
+  "MappingFields": [
+    {
+      "Name": "id",
+      "Description": "[Mandatory]",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create"
+          ],
+          "MappingMode": "None",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "identity",
+      "Description": "[Mandatory]",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update"
+          ],
+          "MappingMode": "Complex",
+          "Value": "\"function getUserPrincipalName() {\\r\\n    let upn = '';\\r\\n\\r\\n    if (typeof Person.Accounts.MicrosoftActiveDirectory.userPrincipalName !== 'undefined' && Person.Accounts.MicrosoftActiveDirectory.userPrincipalName) {\\r\\n        upn = Person.Accounts.MicrosoftActiveDirectory.userPrincipalName;\\r\\n    }\\r\\n\\r\\n    return upn;\\r\\n}\\r\\n\\r\\ngetUserPrincipalName()\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        },
+        {
+          "MapForActions": [
+            "Delete"
+          ],
+          "MappingMode": "Complex",
+          "Value": "\"function getUserPrincipalName() {\\r\\n    // If we return empty or \\\" \\\" UPN the Identity endpoint will return a Error.\\r\\n    let prefix = Person.ExternalId;\\r\\n    let domain = '@enjoy.com';\\r\\n    let upn = prefix + domain;\\r\\n\\r\\n    return upn;\\r\\n}\\r\\n\\r\\ngetUserPrincipalName()\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": false
+        }
+      ]
+    }
+  ],
+  "UniqueFieldNames": []
+}
