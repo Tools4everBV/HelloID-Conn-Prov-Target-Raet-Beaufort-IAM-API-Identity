@@ -166,7 +166,11 @@ try {
             UseBasicParsing = $true
         }
         $correlatedAccount = Invoke-RestMethod @splatWebRequest -Verbose:$false
-        $outputContext.PreviousData = $correlatedAccount
+        $outputContext.PreviousData.id = $correlatedAccount.id
+        $outputContext.PreviousData.identity = $correlatedAccount.identityId
+        # Patch to API has no response so we give back the mapping value to HelloID
+        $outputContext.Data.id = $correlatedAccount.id
+        $outputContext.Data.identity = $account.identity
 
         # Always compare the account against the current account in target system
         if ($null -ne $correlatedAccount.id) {
