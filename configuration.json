@@ -37,7 +37,7 @@
     "type": "checkbox",
     "defaultValue": false,
     "templateOptions": {
-      "label": "Update user when correlating and mapped data differs from data in RAET IAM API",
+      "label": "Update on update",
       "required": false,
       "description": "When toggled, if the mapped data differs from data in Raet Beaufort user, the Raet Beaufort user will be updated when a update is triggerd"
     }
