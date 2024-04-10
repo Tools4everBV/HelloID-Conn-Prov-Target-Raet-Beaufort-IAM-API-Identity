@@ -41,5 +41,15 @@
       "required": false,
       "description": "When toggled, the Raet Beaufort user will only be updated when the account is correlated"
     }
+  },
+  {
+    "key": "isDebug",
+    "type": "checkbox",
+    "defaultValue": false,
+    "templateOptions": {
+      "label": "Toggle debug logging",
+      "description": "When toggled, debug logging will be displayed",
+      "required": false
+    }
   }
 ]
