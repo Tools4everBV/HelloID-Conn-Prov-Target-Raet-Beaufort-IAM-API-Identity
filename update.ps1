@@ -136,7 +136,7 @@ function Confirm-AccessTokenIsValid {
 #endregion functions
 
 try {
-    if (($actionContext.AccountCorrelated -eq $true) -or ($actionContext.Configuration.updateOnUpdate -eq $true)) {
+    if (($actionContext.AccountCorrelated -eq $true) -or ($actionContext.Configuration.onlyUpdateOnCorrelate -eq $false)) {
               
         # Verify if [aRef] has a value
         if ([string]::IsNullOrEmpty($($actionContext.References.Account))) {
@@ -253,7 +253,7 @@ try {
         }
     }
     else {
-        Write-Verbose "No changes to Raet Beaufort user updateOnUpdate is [$($actionContext.Configuration.updateOnUpdate)]"
+        Write-Verbose "The configuration parameter only update on correlate is [$($actionContext.Configuration.onlyUpdateOnCorrelate)]"
         $outputContext.Success = $true
     }
 }
