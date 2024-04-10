@@ -185,7 +185,7 @@ try {
         $action = 'DeleteAccount'
     }
     else {
-        $action = 'NotFound'
+        $updateAction  = 'NotFound'
         $dryRunMessage = "Raet Beaufort user account: [$($actionContext.References.Account)] for person: [$($personContext.Person.DisplayName)] could not be found, possibly indicating that it could be deleted, or the account is not correlated"
     }
 
