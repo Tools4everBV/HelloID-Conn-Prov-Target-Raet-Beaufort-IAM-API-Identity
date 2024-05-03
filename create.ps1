@@ -150,8 +150,8 @@ try {
 
     # Validate correlation configuration
     if ($actionContext.CorrelationConfiguration.Enabled) {
-        $correlationField = $actionContext.CorrelationConfiguration.PersonField
-        $correlationValue = $actionContext.CorrelationConfiguration.PersonFieldValue
+        $correlationField = $actionContext.CorrelationConfiguration.accountField
+        $correlationValue = $actionContext.CorrelationConfiguration.accountFieldValue
 
         if ([string]::IsNullOrEmpty($($correlationField))) {
             throw 'Correlation is enabled but not configured correctly'
@@ -177,7 +177,7 @@ try {
     Write-Verbose "Querying Raet Beaufort user with $($correlationField) '$($correlationValue)'"
 
     $splatWebRequest = @{
-        Uri             = "$($Script:BaseUri)/iam/v1.0/users(employeeId=$($correlationValue))"
+        Uri             = "$($Script:BaseUri)/iam/v1.0/users($($correlationField)=$($correlationValue))"
         Headers         = $Script:AuthenticationHeaders
         Method          = 'GET'
         ContentType     = "application/json"

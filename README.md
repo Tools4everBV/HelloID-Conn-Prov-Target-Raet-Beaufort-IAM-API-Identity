@@ -69,7 +69,7 @@ To properly setup the correlation:
     | ------------------------- | --------------------------------- |
     | Enable correlation        | `True`                            |
     | Person correlation field  | `PersonContext.Person.ExternalId` |
-    | Account correlation field | ``                                |
+    | Account correlation field | `employeeId`                      |
 
 > [!TIP]
 > _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
@@ -82,12 +82,12 @@ The field mapping can be imported by using the [_fieldMapping.json_](./fieldMapp
 
 The following settings are required to connect to the API.
 
-| Setting        | Description                                                                                                                                                      | Mandatory |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Client ID      | The Client ID to connect with the IAM API (created when registering the App in in the Visma Developer portal).                                                   | Yes       |
-| Client Secret  | The Client Secret to connect with the IAM API (created when registering the App in in the Visma Developer portal).                                               | Yes       |
-| Tenant ID      | The Tenant ID to specify to which Raet tenant to connect with the IAM API (available in the Visma Developer portal after the invitation code has been accepted). | Yes       |
-| UpdateOnUpdate | If you also want to update the user on a update account                                                                                                          |           |
+| Setting                  | Description                                                                                                                                                      | Mandatory |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Client ID                | The Client ID to connect with the IAM API (created when registering the App in in the Visma Developer portal).                                                   | Yes       |
+| Client Secret            | The Client Secret to connect with the IAM API (created when registering the App in in the Visma Developer portal).                                               | Yes       |
+| Tenant ID                | The Tenant ID to specify to which Raet tenant to connect with the IAM API (available in the Visma Developer portal after the invitation code has been accepted). | Yes       |
+| Only update on correlate | When enabled, the Raet Beaufort user will only be updated when the account is correlated                                                                         |           |
 
 ### Prerequisites
 
