@@ -37,7 +37,7 @@ Also keep in mind that this endpoint will be migrated to the new IAM-API later o
 
 More information about the Users endpoint of the Raet Users Endpoint can be found on:
 - [Community visma](https://community.visma.com/t5/Kennisbank-Youforce-API/IAM-user-endpoint/ta-p/430073)
-- [Swagger](https://vr-api-integration.github.io/SwaggerUI/IAM%20Users.html)
+- [Swagger](https://api.youforce.com/documentation/index.html?urls.primaryName=Youforce.IAM.Api#/Users)
 
 
 
