@@ -13,122 +13,125 @@
 - [HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Identity](#helloid-conn-prov-target-raet-beaufort-iam-api-identity)
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
+  - [Supported features](#supported-features)
   - [Getting started](#getting-started)
     - [HelloID Icon URL](#helloid-icon-url)
-    - [Provisioning PowerShell V2 connector](#provisioning-powershell-v2-connector)
-      - [Correlation configuration](#correlation-configuration)
-      - [Field mapping](#field-mapping)
+    - [Requirements](#requirements)
     - [Connection settings](#connection-settings)
-    - [Prerequisites](#prerequisites)
-    - [Remarks](#remarks)
+    - [Correlation configuration](#correlation-configuration)
+    - [Field mapping](#field-mapping)
+    - [Account Reference](#account-reference)
+  - [Remarks](#remarks)
+    - [Supported identity field](#supported-identity-field)
+    - [Identity clearing (14-02-2024)](#identity-clearing-14-02-2024)
+    - [Portal visibility (08-12-2022)](#portal-visibility-08-12-2022)
+  - [Development resources](#development-resources)
+    - [API endpoints](#api-endpoints)
+    - [API documentation](#api-documentation)
   - [Getting help](#getting-help)
   - [HelloID docs](#helloid-docs)
 
 ## Introduction
 
-_HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Identity_ is a _target_ connector. _Raet-Beaufort_ provides a set of REST API's that allow you to programmatically interact with its data. The HelloID connector uses the API endpoints listed in the table below.
+_HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Identity_ is a _target_ connector. Raet Beaufort provides REST APIs that allow you to interact with user identity data. This connector correlates existing users and writes the identity value back to Raet Beaufort for use with single sign-on.
 
-| Endpoint                                          | Description |
-| ------------------------------------------------- | ----------- |
-| /iam/v1.0/users(employeeId={employeeId})          | GET user    |
-| /iam/v1.0/users(employeeId={employeeId})/identity | PATCH user  |
+## Supported features
 
-This connector is able to write back the identity of a provisioned user (to another target like Azure AD or MS AD) to the user of Raet Beaufort. This field can be used in Beaufort for single Sign-On purposes. 
-Also keep in mind that this endpoint will be migrated to the new IAM-API later on.
+The following features are available:
 
-More information about the Users endpoint of the Raet Users Endpoint can be found on:
-- [Community visma](https://community.visma.com/t5/Kennisbank-Youforce-API/IAM-user-endpoint/ta-p/430073)
-- [Swagger](https://api.youforce.com/documentation/index.html?urls.primaryName=Youforce.IAM.Api#/Users)
-
-
-
-The following lifecycle actions are available:
-
-| Action             | Description                          |
-| ------------------ | ------------------------------------ |
-| create.ps1         | Correlation on person                |
-| delete.ps1         | Empty configured field(s) on person  |
-| update.ps1         | Update configured field(s) on person |
-| configuration.json | Default _configuration.json_         |
-| fieldMapping.json  | Default _fieldMapping.json_          |
+| Feature                                   | Supported | Actions                | Remarks                                             |
+| ----------------------------------------- | --------- | ---------------------- | --------------------------------------------------- |
+| **Account Lifecycle**                     | ✅         | create, update, delete | Only correlate account and update the Identity user |
+| **Permissions**                           | ❌         | -                      | -                                                   |
+| **Resources**                             | ❌         | -                      | -                                                   |
+| **Entitlement Import: Accounts**          | ❌         | -                      | -                                                   |
+| **Entitlement Import: Permissions**       | ❌         | -                      | -                                                   |
+| **Governance Reconciliation Resolutions** | ❌         | -                      | -                                                   |
 
 ## Getting started
 
 ### HelloID Icon URL
+
 URL of the icon used for the HelloID Provisioning target system.
 
-```
+```text
 https://raw.githubusercontent.com/Tools4everBV/HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Identity/refs/heads/main/Icon.png
 ```
 
-### Provisioning PowerShell V2 connector
+### Requirements
 
-#### Correlation configuration
-
-The correlation configuration is used to specify which properties will be used to match an existing account within _{connectorName}_ to a person in _HelloID_.
-
-To properly setup the correlation:
-
-1. Open the `Correlation` tab.
-
-2. Specify the following configuration:
-
-    | Setting                   | Value                             |
-    | ------------------------- | --------------------------------- |
-    | Enable correlation        | `True`                            |
-    | Person correlation field  | `PersonContext.Person.ExternalId` |
-    | Account correlation field | `employeeId`                      |
-
-> [!TIP]
-> _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
-
-#### Field mapping
-
-The field mapping can be imported by using the [_fieldMapping.json_](./fieldMapping.json) file.
+- **API credentials**: Register an application in the Visma Developer portal and grant access to client data. See the [Visma documentation](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
+- **User endpoints**: Request that the IAM API user endpoints are enabled for the tenant; they are not enabled by default.
+- **Dependent account data**: Make the provisioned system dependent on this target and ensure the identity value to write back (for example, a user principal name) is available on the account data.
 
 ### Connection settings
 
-The following settings are required to connect to the API.
+The following settings are used to connect to the API.
 
-| Setting                  | Description                                                                                                                                                      | Mandatory |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Client ID                | The Client ID to connect with the IAM API (created when registering the App in in the Visma Developer portal).                                                   | Yes       |
-| Client Secret            | The Client Secret to connect with the IAM API (created when registering the App in in the Visma Developer portal).                                               | Yes       |
-| Tenant ID                | The Tenant ID to specify to which Raet tenant to connect with the IAM API (available in the Visma Developer portal after the invitation code has been accepted). | Yes       |
-| Only update on correlate | When enabled, the Raet Beaufort user will only be updated when the account is correlated                                                                         |           |
+| Setting                  | Description                                                                                                                   | Mandatory |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Client ID                | The client ID for the IAM API, created when registering the application in the Visma Developer portal.                        | Yes       |
+| Client Secret            | The client secret for the IAM API, created when registering the application in the Visma Developer portal.                    | Yes       |
+| Tenant ID                | The tenant ID for the Raet tenant. It is available in the Visma Developer portal after the invitation code has been accepted. | No        |
+| Only update on correlate | When enabled, the Raet Beaufort user is updated only when the account is correlated.                                          | No        |
 
-### Prerequisites
+### Correlation configuration
 
-> [!IMPORTANT]
-> The latest version of this connector requires **new api credentials**. To get these, please follow the [Visma documentation](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059) on how to register the App and grant access to client data.  
-- [ ] Enabling of the User endpoints.
-  - By default, the User endpoints aren't "enabled". This has to be requested at Raet.
-- [ ] ClientID, ClientSecret and tenantID
-  - Since we are using the API we need the ClientID, ClientSecret and tenantID to authenticate with RAET IAM-API Webservice.
-- [ ] Dependent account data in HelloID.
-  - Please make your provisioned system dependent on this Users Target Connector and make sure that the values needed to be written back are stored on the account data (e.g UserPrincipalName).
+The correlation configuration specifies which properties are used to match an existing account in Raet Beaufort to a person in HelloID.
 
-### Remarks
+| Setting                   | Value                             |
+| ------------------------- | --------------------------------- |
+| Enable correlation        | `True`                            |
+| Person correlation field  | `PersonContext.Person.ExternalId` |
+| Account correlation field | `employeeId`                      |
+
 > [!TIP]
-> Only the 'identity' field can be updated, no other fields are (currently) supported.
-> 
-> When the value in Raet equals the value in HelloID, the action will be skipped (no update will take place).
+> For more information on correlation, see the [HelloID correlation documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html).
 
-> [!NOTE]
-> Currently (08-12-2022) Changes you make with this connector through the API are not visible within the Youforce portal. If you want to check if the update is succesfull please retreive the edited user or try the SSO connection.
+### Field mapping
 
+The field mapping can be imported by using the [_fieldMapping.json_](./fieldMapping.json) file.
 
-> [!NOTE]
-> Currently (14-02-2024) it is not possible to empty the identity in Youforce. The endpoint will give a error. By default `ExternalID@Domain.com` will be filled.
+### Account Reference
+
+The account reference is populated with the correlated user's `employeeId`.
+
+## Remarks
+
+### Supported identity field
+
+Only the `identity` field can be updated. When the value in Raet Beaufort already matches the value in HelloID, the update is skipped.
+
+### Identity clearing (14-02-2024)
+
+The Youforce endpoint does not currently allow the identity to be emptied. Configure a fallback value such as `ExternalID@Domain.com` if an identity value is required during the delete action.
+
+### Portal visibility (08-12-2022)
+
+Changes made through the API may not be visible in the Youforce portal. To verify an update, retrieve the edited user through the API or test the single sign-on connection.
+
+## Development resources
+
+### API endpoints
+
+The following endpoints are used by the connector:
+
+| Endpoint                                            | HTTP method | Description                    |
+| --------------------------------------------------- | ----------- | ------------------------------ |
+| `https://connect.visma.com/connect/token`           | POST        | Retrieve an access token       |
+| `/iam/v1.0/users(employeeId={employeeId})`          | GET         | Retrieve a user by employee ID |
+| `/iam/v1.0/users(employeeId={employeeId})/identity` | PATCH       | Update the user's identity     |
+
+### API documentation
+
+- [IAM user endpoint information](https://community.visma.com/t5/Kennisbank-Youforce-API/IAM-user-endpoint/ta-p/430073)
+- [Youforce IAM API Swagger documentation](https://api.youforce.com/documentation/index.html?urls.primaryName=Youforce.IAM.Api#/Users)
 
 ## Getting help
 
 > [!TIP]
-> _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
-
-> [!TIP]
->  _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com)_.
+> For more information on configuring a HelloID PowerShell connector, see the [PowerShell V2 target system documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html).
 
 ## HelloID docs
 
-The official HelloID documentation can be found at: https://docs.helloid.com/
+The official HelloID documentation can be found at: [https://docs.helloid.com/](https://docs.helloid.com/)

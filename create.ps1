@@ -6,12 +6,6 @@
 # Enable TLS1.2
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
-# Set debug logging
-switch ($($actionContext.Configuration.isDebug)) {
-    $true { $VerbosePreference = 'Continue' }
-    $false { $VerbosePreference = 'SilentlyContinue' }
-}
-
 # Used to connect to RAET IAM API endpoints
 $Script:AuthenticationUri = "https://connect.visma.com/connect/token"
 $Script:BaseUri = "https://api.youforce.com"
@@ -87,7 +81,7 @@ function New-RaetSession {
             UseBasicParsing = $true
         }
 
-        Write-Verbose "Creating Access Token at uri '$($splatAccessTokenParams.Uri)'"
+        Write-Information "Creating Access Token at uri '$($splatAccessTokenParams.Uri)'"
 
         $result = Invoke-RestMethod @splatAccessTokenParams
         if ($null -eq $result.access_token) {
@@ -101,7 +95,7 @@ function New-RaetSession {
             'Accept'        = "application/json"
         }
 
-        Write-Verbose "Successfully created Access Token at uri '$($splatAccessTokenParams.Uri)'"
+        Write-Information "Successfully created Access Token at uri '$($splatAccessTokenParams.Uri)'"
     }
     catch {
         # Clear verboseErrorMessage and auditErrorMessage to make sure it isn't filled with a previouw error message
@@ -125,7 +119,7 @@ function New-RaetSession {
             $auditErrorMessage = $ex.Exception.Message
         }
 
-        Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"        
+        Write-Information "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"        
 
         throw "Error creating Access Token at uri ''$($splatAccessTokenParams.Uri)'. Please check credentials. Error Message: $auditErrorMessage"
     }
@@ -174,7 +168,7 @@ try {
         New-RaetSession @splatRaetSession
     }
 
-    Write-Verbose "Querying Raet Beaufort user with $($correlationField) '$($correlationValue)'"
+    Write-Information "Querying Raet Beaufort user with $($correlationField) '$($correlationValue)'"
 
     $splatWebRequest = @{
         Uri             = "$($Script:BaseUri)/iam/v1.0/users($($correlationField)=$($correlationValue))"
@@ -195,14 +189,14 @@ try {
 
     # Add a message and the result of each of the validations showing what will happen during enforcement
     if ($actionContext.DryRun -eq $true) {
-        Write-Verbose "[DryRun] $action Raet Beaufort user account for: [$($personContext.Person.DisplayName)], will be executed during enforcement" -Verbose
+        Write-Information "[DryRun] $action Raet Beaufort user account for: [$($personContext.Person.DisplayName)], will be executed during enforcement" -Verbose
     }
 
     # Process
     if (-not($actionContext.DryRun -eq $true)) {
         switch ($action) {
             'CorrelateAccount' {
-                Write-Verbose 'Correlating Raet Beaufort employee account'
+                Write-Information 'Correlating Raet Beaufort employee account'
 
                 $outputContext.Data = $correlatedAccount
                 $outputContext.AccountCorrelated = $true
@@ -238,7 +232,7 @@ catch {
         $auditErrorMessage = $ex.Exception.Message
     }
   
-    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
+    Write-Information "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)"
 
     $outputContext.AuditLogs.Add([PSCustomObject]@{
             Message = "Error updating Raet Beaufort employee with $($correlationProperty) '$($correlationValue)'. Error Message: $($auditErrorMessage)"
