@@ -13,7 +13,7 @@
             "Delete"
           ],
           "MappingMode": "None",
-          "Value": "\"\"",
+          "Value": "null",
           "UsedInNotifications": false,
           "StoreInAccountData": true
         }
@@ -39,7 +39,7 @@
             "Delete"
           ],
           "MappingMode": "Complex",
-          "Value": "\"function getUserPrincipalName() {\\r\\n    // If we return empty or \\\" \\\" UPN the Identity endpoint will return a Error.\\r\\n    let prefix = Person.ExternalId;\\r\\n    let domain = '@enjoy.com';\\r\\n    let upn = prefix + domain;\\r\\n\\r\\n    return upn;\\r\\n}\\r\\n\\r\\ngetUserPrincipalName()\"",
+          "Value": "\"function convertDate(date) {\\r\\n    // Get day, month, and year components\\r\\n    const day = date.getDate().toString().padStart(2, '0');\\r\\n    const month = (date.getMonth() + 1).toString().padStart(2, '0');\\r\\n    const year = date.getFullYear();\\r\\n\\r\\n    // Format the date as \\\"yyyyMMdd\\\"\\r\\n    return `${year}${month}${day}`;\\r\\n}\\r\\n\\r\\nfunction getUserPrincipalName() {\\r\\n    // If we return empty or \\\" \\\" UPN the Identity endpoint will return a Error.\\r\\n    let prefix = Person.ExternalId;\\r\\n\\r\\n    let domain = '@domain.com';\\r\\n\\r\\n    //if person is missing use current date;\\r\\n    if (prefix == null) {\\r\\n        let inputDate = new Date(); // Replace with your actual input date\\r\\n        let returnDate = inputDate ? convertDate(new Date(inputDate)) : null;\\r\\n        prefix = returnDate\\r\\n    }\\r\\n\\r\\n    let upn = prefix + domain;\\r\\n    return upn;\\r\\n}\\r\\n\\r\\ngetUserPrincipalName();\"",
           "UsedInNotifications": false,
           "StoreInAccountData": false
         }
